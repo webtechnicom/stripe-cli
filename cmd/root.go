@@ -82,8 +82,6 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 }
 
 func init() {
-	cobra.OnInitialize(profile.InitConfig)
-
 	rootCmd.PersistentFlags().String("api-key", "", "Your test mode API secret key to use for the command")
 	rootCmd.PersistentFlags().StringVar(&profile.Color, "color", "auto", "turn on/off color output (on, off, auto)")
 	rootCmd.PersistentFlags().StringVar(&profile.ConfigFile, "config", "", "config file (default is $HOME/.config/stripe/config.toml)")

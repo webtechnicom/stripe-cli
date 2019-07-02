@@ -6,18 +6,14 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/stripe/stripe-cli/ansi"
 	"github.com/stripe/stripe-cli/validators"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type configureCmd struct {
@@ -52,39 +48,17 @@ $ stripe configure --project-name rocket_rides`,
 }
 
 func (cc *configureCmd) runConfigureCmd(cmd *cobra.Command, args []string) error {
-	configPath := profile.GetConfigFolder(os.Getenv("XDG_CONFIG_HOME"))
-	dotfilePath := filepath.Join(configPath, "config.toml")
-
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		err = os.MkdirAll(configPath, os.ModePerm)
-		if err != nil {
-			return err
-		}
-	}
-
 	apiKey, err := cc.getConfigureAPIKey(os.Stdin)
 	if err != nil {
 		return err
 	}
 
-	deviceName := cc.getConfigureDeviceName(os.Stdin)
+	profile.DeviceName = cc.getConfigureDeviceName(os.Stdin)
 
-	log.WithFields(log.Fields{
-		"prefix": "cmd.configureCmd.runConfigureCmd",
-		"path":   dotfilePath,
-	}).Debug("Writing config file")
-
-	viper.SetConfigType("toml")
-	viper.SetConfigFile(dotfilePath)
-
-	viper.Set(profile.ProfileName+".secret_key", strings.TrimSpace(apiKey))
-	viper.Set("default.device_name", strings.TrimSpace(deviceName))
-	err = viper.WriteConfig()
-	if err != nil {
-		return err
+	configErr := profile.ConfigureProfile(apiKey)
+	if configErr != nil {
+		return configErr
 	}
-
-	fmt.Println("You're configured and all set to get started")
 
 	return nil
 }

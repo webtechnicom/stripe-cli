@@ -22,6 +22,7 @@ type Profile struct {
 	ConfigFile  string
 	LogLevel    string
 	ProfileName string
+	DeviceName string
 }
 
 // GetDeviceName returns the configured device name
