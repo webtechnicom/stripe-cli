@@ -17,6 +17,8 @@ install:
 
 script:
   - make ci
+    on:
+      fork: false
 
 after_success:
   - test -n "$TRAVIS_TAG" && docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
