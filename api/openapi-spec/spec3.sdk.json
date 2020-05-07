@@ -1838,6 +1838,9 @@
             },
             "type": "array"
           },
+          "issuing": {
+            "$ref": "#/components/schemas/balance_detail"
+          },
           "livemode": {
             "description": "Has the value `true` if the object exists in live mode or the value `false` if the object exists in test mode.",
             "type": "boolean"
@@ -1868,6 +1871,7 @@
         "x-expandableFields": [
           "available",
           "connect_reserved",
+          "issuing",
           "pending"
         ],
         "x-resourceId": "balance",
@@ -1891,7 +1895,8 @@
           "class_name": "Balance",
           "in_package": "",
           "inner_classes": [
-            "balance_amount"
+            "balance_amount",
+            "balance_detail"
           ]
         }
       },
@@ -1951,6 +1956,30 @@
         "x-stripeResource": {
           "class_name": "SourceTypes",
           "in_class": "balance_amount"
+        }
+      },
+      "balance_detail": {
+        "description": "",
+        "properties": {
+          "available": {
+            "description": "Funds that are available for use.",
+            "items": {
+              "$ref": "#/components/schemas/balance_amount"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "available"
+        ],
+        "title": "BalanceDetail",
+        "type": "object",
+        "x-expandableFields": [
+          "available"
+        ],
+        "x-stripeResource": {
+          "class_name": "Details",
+          "in_class": "balance"
         }
       },
       "balance_transaction": {
@@ -2594,7 +2623,7 @@
         }
       },
       "billing_portal.session": {
-        "description": "A Session describes the instantiation of the self-serve portal for\na particular customer. By visiting the self-serve portal's URL, the customer\ncan manage their subscriptions and view their invoice payment history. For security reasons,\nSessions are short-lived and will expire if the customer does not visit the URL.\nCreate Sessions on-demand.\n\nRelated guide: [self-serve Portal](https://stripe.com/docs/billing/subscriptions/integrating-self-serve).",
+        "description": "A Session describes the instantiation of the self-serve portal for\na particular customer. By visiting the self-serve portal's URL, the customer\ncan manage their subscriptions and billing details. For security reasons,\nSessions are short-lived and will expire if the customer does not visit the URL.\nCreate Sessions on-demand.\n\nRelated guide: [self-serve portal](https://stripe.com/docs/billing/subscriptions/integrating-self-serve).",
         "properties": {
           "created": {
             "description": "Time at which the object was created. Measured in seconds since the Unix epoch.",
@@ -5920,7 +5949,7 @@
         }
       },
       "customer": {
-        "description": "`Customer` objects allow you to perform recurring charges, and to track\nmultiple charges, that are associated with the same customer. The API allows\nyou to create, delete, and update your customers. You can retrieve individual\ncustomers as well as a list of all your customers.\n\nRelated guide: [Saving Cards with Customers](https://stripe.com/docs/saving-cards).",
+        "description": "`Customer` objects allow you to perform recurring charges, and to track\nmultiple charges, that are associated with the same customer. The API allows\nyou to create, delete, and update your customers. You can retrieve individual\ncustomers as well as a list of all your customers.\n\nRelated guide: [Save a card during payment](https://stripe.com/docs/payments/save-during-payment).",
         "properties": {
           "address": {
             "anyOf": [
@@ -28155,6 +28184,7 @@
           },
           "quantity": {
             "description": "Quantity of the plan to which the customer should be subscribed.",
+            "nullable": true,
             "type": "integer"
           },
           "tax_rates": {
@@ -28168,7 +28198,8 @@
         },
         "required": [
           "billing_thresholds",
-          "plan"
+          "plan",
+          "quantity"
         ],
         "title": "SubscriptionScheduleConfigurationItem",
         "type": "object",
@@ -29613,7 +29644,11 @@
           },
           "version": {
             "description": "The version of 3D Secure that was used for this payment.",
-            "maxLength": 5000,
+            "enum": [
+              "1.0.2",
+              "2.1.0",
+              "2.2.0"
+            ],
             "type": "string"
           }
         },
@@ -31657,6 +31692,43 @@
                         "maxLength": 40000,
                         "type": "string"
                       },
+                      "support_address": {
+                        "description": "A publicly available mailing address for sending support issues to.",
+                        "properties": {
+                          "city": {
+                            "description": "City, district, suburb, town, or village.",
+                            "maxLength": 100,
+                            "type": "string"
+                          },
+                          "country": {
+                            "description": "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2)).",
+                            "maxLength": 5000,
+                            "type": "string"
+                          },
+                          "line1": {
+                            "description": "Address line 1 (e.g., street, PO Box, or company name).",
+                            "maxLength": 200,
+                            "type": "string"
+                          },
+                          "line2": {
+                            "description": "Address line 2 (e.g., apartment, suite, unit, or building).",
+                            "maxLength": 200,
+                            "type": "string"
+                          },
+                          "postal_code": {
+                            "description": "ZIP or postal code.",
+                            "maxLength": 5000,
+                            "type": "string"
+                          },
+                          "state": {
+                            "description": "State, county, province, or region.",
+                            "maxLength": 5000,
+                            "type": "string"
+                          }
+                        },
+                        "title": "address_specs",
+                        "type": "object"
+                      },
                       "support_email": {
                         "description": "A publicly available email address for sending support issues to.",
                         "type": "string"
@@ -32667,6 +32739,43 @@
                         "description": "Internal-only description of the product sold by, or service provided by, the business. Used by Stripe for risk and underwriting purposes.",
                         "maxLength": 40000,
                         "type": "string"
+                      },
+                      "support_address": {
+                        "description": "A publicly available mailing address for sending support issues to.",
+                        "properties": {
+                          "city": {
+                            "description": "City, district, suburb, town, or village.",
+                            "maxLength": 100,
+                            "type": "string"
+                          },
+                          "country": {
+                            "description": "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2)).",
+                            "maxLength": 5000,
+                            "type": "string"
+                          },
+                          "line1": {
+                            "description": "Address line 1 (e.g., street, PO Box, or company name).",
+                            "maxLength": 200,
+                            "type": "string"
+                          },
+                          "line2": {
+                            "description": "Address line 2 (e.g., apartment, suite, unit, or building).",
+                            "maxLength": 200,
+                            "type": "string"
+                          },
+                          "postal_code": {
+                            "description": "ZIP or postal code.",
+                            "maxLength": 5000,
+                            "type": "string"
+                          },
+                          "state": {
+                            "description": "State, county, province, or region.",
+                            "maxLength": 5000,
+                            "type": "string"
+                          }
+                        },
+                        "title": "address_specs",
+                        "type": "object"
                       },
                       "support_email": {
                         "description": "A publicly available email address for sending support issues to.",
@@ -47347,6 +47456,7 @@
                     "object",
                     "url"
                   ],
+                  "title": "InvoicesList",
                   "type": "object",
                   "x-expandableFields": [
                     "data"
@@ -47978,16 +48088,6 @@
                       "recurring": {
                         "description": "The recurring components of a price such as `interval` and `usage_type`.",
                         "properties": {
-                          "aggregate_usage": {
-                            "description": "Specifies a usage aggregation strategy for prices of `usage_type=metered`. Allowed values are `sum` for summing up all usage during a period, `last_during_period` for using the last usage record reported within a period, `last_ever` for using the last usage record ever (across period bounds) or `max` which uses the usage record with the maximum reported usage during a period. Defaults to `sum`.",
-                            "enum": [
-                              "last_during_period",
-                              "last_ever",
-                              "max",
-                              "sum"
-                            ],
-                            "type": "string"
-                          },
                           "interval": {
                             "description": "Specifies billing frequency. Either `day`, `week`, `month` or `year`.",
                             "enum": [
@@ -48001,24 +48101,12 @@
                           "interval_count": {
                             "description": "The number of intervals between subscription billings. For example, `interval=month` and `interval_count=3` bills every 3 months. Maximum of one year interval allowed (1 year, 12 months, or 52 weeks).",
                             "type": "integer"
-                          },
-                          "trial_period_days": {
-                            "description": "Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://stripe.com/docs/api#create_subscription-trial_from_plan).",
-                            "type": "integer"
-                          },
-                          "usage_type": {
-                            "description": "Configures how the quantity per period should be determined. Can be either `metered` or `licensed`. `licensed` automatically bills the `quantity` set when adding it to a subscription. `metered` aggregates the total usage based on usage records. Defaults to `licensed`.",
-                            "enum": [
-                              "licensed",
-                              "metered"
-                            ],
-                            "type": "string"
                           }
                         },
                         "required": [
                           "interval"
                         ],
-                        "title": "recurring",
+                        "title": "recurring_adhoc",
                         "type": "object"
                       },
                       "unit_amount": {
@@ -48630,16 +48718,6 @@
                       "recurring": {
                         "description": "The recurring components of a price such as `interval` and `usage_type`.",
                         "properties": {
-                          "aggregate_usage": {
-                            "description": "Specifies a usage aggregation strategy for prices of `usage_type=metered`. Allowed values are `sum` for summing up all usage during a period, `last_during_period` for using the last usage record reported within a period, `last_ever` for using the last usage record ever (across period bounds) or `max` which uses the usage record with the maximum reported usage during a period. Defaults to `sum`.",
-                            "enum": [
-                              "last_during_period",
-                              "last_ever",
-                              "max",
-                              "sum"
-                            ],
-                            "type": "string"
-                          },
                           "interval": {
                             "description": "Specifies billing frequency. Either `day`, `week`, `month` or `year`.",
                             "enum": [
@@ -48653,24 +48731,12 @@
                           "interval_count": {
                             "description": "The number of intervals between subscription billings. For example, `interval=month` and `interval_count=3` bills every 3 months. Maximum of one year interval allowed (1 year, 12 months, or 52 weeks).",
                             "type": "integer"
-                          },
-                          "trial_period_days": {
-                            "description": "Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://stripe.com/docs/api#create_subscription-trial_from_plan).",
-                            "type": "integer"
-                          },
-                          "usage_type": {
-                            "description": "Configures how the quantity per period should be determined. Can be either `metered` or `licensed`. `licensed` automatically bills the `quantity` set when adding it to a subscription. `metered` aggregates the total usage based on usage records. Defaults to `licensed`.",
-                            "enum": [
-                              "licensed",
-                              "metered"
-                            ],
-                            "type": "string"
                           }
                         },
                         "required": [
                           "interval"
                         ],
-                        "title": "recurring",
+                        "title": "recurring_adhoc",
                         "type": "object"
                       },
                       "unit_amount": {
@@ -59940,6 +60006,10 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "encoding": {
+                "au_becs_debit": {
+                  "explode": true,
+                  "style": "deepObject"
+                },
                 "billing_details": {
                   "explode": true,
                   "style": "deepObject"
@@ -59964,6 +60034,13 @@
               "schema": {
                 "additionalProperties": false,
                 "properties": {
+                  "au_becs_debit": {
+                    "description": "If this is an `au_becs_debit` PaymentMethod, this hash contains details about the bank account.",
+                    "properties": {
+                    },
+                    "title": "update_param",
+                    "type": "object"
+                  },
                   "billing_details": {
                     "description": "Billing information associated with the PaymentMethod that may be used or required by particular types of payment methods.",
                     "properties": {
@@ -69814,16 +69891,6 @@
                       "recurring": {
                         "description": "The recurring components of a price such as `interval` and `usage_type`.",
                         "properties": {
-                          "aggregate_usage": {
-                            "description": "Specifies a usage aggregation strategy for prices of `usage_type=metered`. Allowed values are `sum` for summing up all usage during a period, `last_during_period` for using the last usage record reported within a period, `last_ever` for using the last usage record ever (across period bounds) or `max` which uses the usage record with the maximum reported usage during a period. Defaults to `sum`.",
-                            "enum": [
-                              "last_during_period",
-                              "last_ever",
-                              "max",
-                              "sum"
-                            ],
-                            "type": "string"
-                          },
                           "interval": {
                             "description": "Specifies billing frequency. Either `day`, `week`, `month` or `year`.",
                             "enum": [
@@ -69837,24 +69904,12 @@
                           "interval_count": {
                             "description": "The number of intervals between subscription billings. For example, `interval=month` and `interval_count=3` bills every 3 months. Maximum of one year interval allowed (1 year, 12 months, or 52 weeks).",
                             "type": "integer"
-                          },
-                          "trial_period_days": {
-                            "description": "Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://stripe.com/docs/api#create_subscription-trial_from_plan).",
-                            "type": "integer"
-                          },
-                          "usage_type": {
-                            "description": "Configures how the quantity per period should be determined. Can be either `metered` or `licensed`. `licensed` automatically bills the `quantity` set when adding it to a subscription. `metered` aggregates the total usage based on usage records. Defaults to `licensed`.",
-                            "enum": [
-                              "licensed",
-                              "metered"
-                            ],
-                            "type": "string"
                           }
                         },
                         "required": [
                           "interval"
                         ],
-                        "title": "recurring",
+                        "title": "recurring_adhoc",
                         "type": "object"
                       },
                       "unit_amount": {
@@ -70231,16 +70286,6 @@
                       "recurring": {
                         "description": "The recurring components of a price such as `interval` and `usage_type`.",
                         "properties": {
-                          "aggregate_usage": {
-                            "description": "Specifies a usage aggregation strategy for prices of `usage_type=metered`. Allowed values are `sum` for summing up all usage during a period, `last_during_period` for using the last usage record reported within a period, `last_ever` for using the last usage record ever (across period bounds) or `max` which uses the usage record with the maximum reported usage during a period. Defaults to `sum`.",
-                            "enum": [
-                              "last_during_period",
-                              "last_ever",
-                              "max",
-                              "sum"
-                            ],
-                            "type": "string"
-                          },
                           "interval": {
                             "description": "Specifies billing frequency. Either `day`, `week`, `month` or `year`.",
                             "enum": [
@@ -70254,24 +70299,12 @@
                           "interval_count": {
                             "description": "The number of intervals between subscription billings. For example, `interval=month` and `interval_count=3` bills every 3 months. Maximum of one year interval allowed (1 year, 12 months, or 52 weeks).",
                             "type": "integer"
-                          },
-                          "trial_period_days": {
-                            "description": "Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://stripe.com/docs/api#create_subscription-trial_from_plan).",
-                            "type": "integer"
-                          },
-                          "usage_type": {
-                            "description": "Configures how the quantity per period should be determined. Can be either `metered` or `licensed`. `licensed` automatically bills the `quantity` set when adding it to a subscription. `metered` aggregates the total usage based on usage records. Defaults to `licensed`.",
-                            "enum": [
-                              "licensed",
-                              "metered"
-                            ],
-                            "type": "string"
                           }
                         },
                         "required": [
                           "interval"
                         ],
-                        "title": "recurring",
+                        "title": "recurring_adhoc",
                         "type": "object"
                       },
                       "unit_amount": {
@@ -71214,16 +71247,6 @@
                                   "recurring": {
                                     "description": "The recurring components of a price such as `interval` and `usage_type`.",
                                     "properties": {
-                                      "aggregate_usage": {
-                                        "description": "Specifies a usage aggregation strategy for prices of `usage_type=metered`. Allowed values are `sum` for summing up all usage during a period, `last_during_period` for using the last usage record reported within a period, `last_ever` for using the last usage record ever (across period bounds) or `max` which uses the usage record with the maximum reported usage during a period. Defaults to `sum`.",
-                                        "enum": [
-                                          "last_during_period",
-                                          "last_ever",
-                                          "max",
-                                          "sum"
-                                        ],
-                                        "type": "string"
-                                      },
                                       "interval": {
                                         "description": "Specifies billing frequency. Either `day`, `week`, `month` or `year`.",
                                         "enum": [
@@ -71237,24 +71260,12 @@
                                       "interval_count": {
                                         "description": "The number of intervals between subscription billings. For example, `interval=month` and `interval_count=3` bills every 3 months. Maximum of one year interval allowed (1 year, 12 months, or 52 weeks).",
                                         "type": "integer"
-                                      },
-                                      "trial_period_days": {
-                                        "description": "Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://stripe.com/docs/api#create_subscription-trial_from_plan).",
-                                        "type": "integer"
-                                      },
-                                      "usage_type": {
-                                        "description": "Configures how the quantity per period should be determined. Can be either `metered` or `licensed`. `licensed` automatically bills the `quantity` set when adding it to a subscription. `metered` aggregates the total usage based on usage records. Defaults to `licensed`.",
-                                        "enum": [
-                                          "licensed",
-                                          "metered"
-                                        ],
-                                        "type": "string"
                                       }
                                     },
                                     "required": [
                                       "interval"
                                     ],
-                                    "title": "recurring",
+                                    "title": "recurring_adhoc",
                                     "type": "object"
                                   },
                                   "unit_amount": {
@@ -71797,16 +71808,6 @@
                                   "recurring": {
                                     "description": "The recurring components of a price such as `interval` and `usage_type`.",
                                     "properties": {
-                                      "aggregate_usage": {
-                                        "description": "Specifies a usage aggregation strategy for prices of `usage_type=metered`. Allowed values are `sum` for summing up all usage during a period, `last_during_period` for using the last usage record reported within a period, `last_ever` for using the last usage record ever (across period bounds) or `max` which uses the usage record with the maximum reported usage during a period. Defaults to `sum`.",
-                                        "enum": [
-                                          "last_during_period",
-                                          "last_ever",
-                                          "max",
-                                          "sum"
-                                        ],
-                                        "type": "string"
-                                      },
                                       "interval": {
                                         "description": "Specifies billing frequency. Either `day`, `week`, `month` or `year`.",
                                         "enum": [
@@ -71820,24 +71821,12 @@
                                       "interval_count": {
                                         "description": "The number of intervals between subscription billings. For example, `interval=month` and `interval_count=3` bills every 3 months. Maximum of one year interval allowed (1 year, 12 months, or 52 weeks).",
                                         "type": "integer"
-                                      },
-                                      "trial_period_days": {
-                                        "description": "Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://stripe.com/docs/api#create_subscription-trial_from_plan).",
-                                        "type": "integer"
-                                      },
-                                      "usage_type": {
-                                        "description": "Configures how the quantity per period should be determined. Can be either `metered` or `licensed`. `licensed` automatically bills the `quantity` set when adding it to a subscription. `metered` aggregates the total usage based on usage records. Defaults to `licensed`.",
-                                        "enum": [
-                                          "licensed",
-                                          "metered"
-                                        ],
-                                        "type": "string"
                                       }
                                     },
                                     "required": [
                                       "interval"
                                     ],
-                                    "title": "recurring",
+                                    "title": "recurring_adhoc",
                                     "type": "object"
                                   },
                                   "unit_amount": {
@@ -72721,16 +72710,6 @@
                             "recurring": {
                               "description": "The recurring components of a price such as `interval` and `usage_type`.",
                               "properties": {
-                                "aggregate_usage": {
-                                  "description": "Specifies a usage aggregation strategy for prices of `usage_type=metered`. Allowed values are `sum` for summing up all usage during a period, `last_during_period` for using the last usage record reported within a period, `last_ever` for using the last usage record ever (across period bounds) or `max` which uses the usage record with the maximum reported usage during a period. Defaults to `sum`.",
-                                  "enum": [
-                                    "last_during_period",
-                                    "last_ever",
-                                    "max",
-                                    "sum"
-                                  ],
-                                  "type": "string"
-                                },
                                 "interval": {
                                   "description": "Specifies billing frequency. Either `day`, `week`, `month` or `year`.",
                                   "enum": [
@@ -72744,24 +72723,12 @@
                                 "interval_count": {
                                   "description": "The number of intervals between subscription billings. For example, `interval=month` and `interval_count=3` bills every 3 months. Maximum of one year interval allowed (1 year, 12 months, or 52 weeks).",
                                   "type": "integer"
-                                },
-                                "trial_period_days": {
-                                  "description": "Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://stripe.com/docs/api#create_subscription-trial_from_plan).",
-                                  "type": "integer"
-                                },
-                                "usage_type": {
-                                  "description": "Configures how the quantity per period should be determined. Can be either `metered` or `licensed`. `licensed` automatically bills the `quantity` set when adding it to a subscription. `metered` aggregates the total usage based on usage records. Defaults to `licensed`.",
-                                  "enum": [
-                                    "licensed",
-                                    "metered"
-                                  ],
-                                  "type": "string"
                                 }
                               },
                               "required": [
                                 "interval"
                               ],
-                              "title": "recurring",
+                              "title": "recurring_adhoc",
                               "type": "object"
                             },
                             "unit_amount": {
@@ -73444,16 +73411,6 @@
                             "recurring": {
                               "description": "The recurring components of a price such as `interval` and `usage_type`.",
                               "properties": {
-                                "aggregate_usage": {
-                                  "description": "Specifies a usage aggregation strategy for prices of `usage_type=metered`. Allowed values are `sum` for summing up all usage during a period, `last_during_period` for using the last usage record reported within a period, `last_ever` for using the last usage record ever (across period bounds) or `max` which uses the usage record with the maximum reported usage during a period. Defaults to `sum`.",
-                                  "enum": [
-                                    "last_during_period",
-                                    "last_ever",
-                                    "max",
-                                    "sum"
-                                  ],
-                                  "type": "string"
-                                },
                                 "interval": {
                                   "description": "Specifies billing frequency. Either `day`, `week`, `month` or `year`.",
                                   "enum": [
@@ -73467,24 +73424,12 @@
                                 "interval_count": {
                                   "description": "The number of intervals between subscription billings. For example, `interval=month` and `interval_count=3` bills every 3 months. Maximum of one year interval allowed (1 year, 12 months, or 52 weeks).",
                                   "type": "integer"
-                                },
-                                "trial_period_days": {
-                                  "description": "Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://stripe.com/docs/api#create_subscription-trial_from_plan).",
-                                  "type": "integer"
-                                },
-                                "usage_type": {
-                                  "description": "Configures how the quantity per period should be determined. Can be either `metered` or `licensed`. `licensed` automatically bills the `quantity` set when adding it to a subscription. `metered` aggregates the total usage based on usage records. Defaults to `licensed`.",
-                                  "enum": [
-                                    "licensed",
-                                    "metered"
-                                  ],
-                                  "type": "string"
                                 }
                               },
                               "required": [
                                 "interval"
                               ],
-                              "title": "recurring",
+                              "title": "recurring_adhoc",
                               "type": "object"
                             },
                             "unit_amount": {
