@@ -15,8 +15,31 @@ import (
 	ws "github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 
+	//"github.com/stripe/stripe-cli/pkg/stripeauth"
 	"github.com/stripe/stripe-cli/pkg/useragent"
 )
+
+//type FixedClient struct {
+//	Log   *log.Logger
+//	NoWSS bool
+//}
+//
+//func NewFixedClient(log *log.Logger, noWSS bool) FixedClient {
+//	return FixedClient{
+//		Log:   log,
+//		NoWSS: noWSS,
+//	}
+//}
+//
+//type sessionRefresher = func(context.Context, error) (*stripeauth.StripeCLISession, error)
+//
+//func (c FixedClient) Run(ctx context.Context, refreshSession sessionRefresher) (chan IncomingMessage, error) {
+//	session, err := refreshSession(ctx, nil)
+//	if err != nil {
+//		return nil, err
+//	}
+//	messages := make(chan IncomingMessage)
+//}
 
 //
 // Public types

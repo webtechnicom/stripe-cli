@@ -102,68 +102,70 @@ func withSIGTERMCancel(ctx context.Context, onCancel func()) context.Context {
 
 const maxConnectAttempts = 3
 
+type sessionRefresher = func(context.Context, error) (*stripeauth.StripeCLISession, error)
+type EventSource interface {
+	Run(context.Context, sessionRefresher) (chan websocket.IncomingMessage, error)
+}
+
+type wsClient struct {
+	client *websocket.Client
+	cfg    *Config
+}
+
+func (c wsClient) Run(ctx context.Context, refreshSession sessionRefresher) (chan websocket.IncomingMessage, error) {
+	session, err := refreshSession(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	messages := make(chan websocket.IncomingMessage)
+	c.client = websocket.NewClient(
+		session.WebSocketURL,
+		session.WebSocketID,
+		session.WebSocketAuthorizedFeature,
+		&websocket.Config{
+			Log:               c.cfg.Log,
+			NoWSS:             c.cfg.NoWSS,
+			ReconnectInterval: time.Duration(session.ReconnectDelay) * time.Second,
+			EventHandler: websocket.EventHandlerFunc(func(m websocket.IncomingMessage) {
+				messages <- m
+			}),
+		},
+	)
+
+	go c.client.Run(ctx)
+	return messages, nil
+}
+
+func newWsClient(cfg *Config) EventSource {
+	return wsClient{cfg: cfg}
+}
+
 // Run sets the websocket connection and starts the Goroutines to forward
 // incoming events to the local endpoint.
 func (p *Proxy) Run(ctx context.Context) error {
-	s := ansi.StartNewSpinner("Getting ready...", p.cfg.Log.Out)
-
-	ctx = withSIGTERMCancel(ctx, func() {
-		log.WithFields(log.Fields{
-			"prefix": "proxy.Proxy.Run",
-		}).Debug("Ctrl+C received, cleaning up...")
-	})
-
-	var nAttempts int = 0
-
-	for nAttempts < maxConnectAttempts {
-		session, err := p.createSession(ctx)
+	isExpirationErr := func(err error) bool { return true }
+	refreshSession := func(ctx context.Context, err error) (*stripeauth.StripeCLISession, error) {
 		if err != nil {
-			ansi.StopSpinner(s, "", p.cfg.Log.Out)
-			p.cfg.Log.Fatalf("Error while authenticating with Stripe: %v", err)
-		}
-
-		p.webSocketClient = websocket.NewClient(
-			session.WebSocketURL,
-			session.WebSocketID,
-			session.WebSocketAuthorizedFeature,
-			&websocket.Config{
-				Log:               p.cfg.Log,
-				NoWSS:             p.cfg.NoWSS,
-				ReconnectInterval: time.Duration(session.ReconnectDelay) * time.Second,
-				EventHandler:      websocket.EventHandlerFunc(p.processWebhookEvent),
-			},
-		)
-
-		go func() {
-			<-p.webSocketClient.Connected()
-			nAttempts = 0
-			ansi.StopSpinner(s, fmt.Sprintf("Ready! Your webhook signing secret is %s (^C to quit)", ansi.Bold(session.Secret)), p.cfg.Log.Out)
-		}()
-
-		go p.webSocketClient.Run(ctx)
-		nAttempts++
-
-		select {
-		case <-ctx.Done():
-			ansi.StopSpinner(s, "", p.cfg.Log.Out)
-			p.cfg.Log.Fatalf("Aborting")
-		case <-p.webSocketClient.NotifyExpired:
-			if nAttempts < maxConnectAttempts {
-				ansi.StartSpinner(s, "Session expired, reconnecting...", p.cfg.Log.Out)
-			} else {
-				p.cfg.Log.Fatalf("Session expired. Terminating after %d failed attempts to reauthorize", nAttempts)
+			if !isExpirationErr(err) {
+				return nil, err
 			}
 		}
+		session, err := p.createSession(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		return session, nil
 	}
 
-	if p.webSocketClient != nil {
-		p.webSocketClient.Stop()
+	client := newWsClient(p.cfg)
+	events, err := client.Run(ctx, refreshSession)
+	if err != nil {
+		return err
 	}
-
-	log.WithFields(log.Fields{
-		"prefix": "proxy.Proxy.Run",
-	}).Debug("Bye!")
-
+	for event := range events {
+		go p.processWebhookEvent(event)
+	}
 	return nil
 }
 
@@ -370,7 +372,12 @@ func New(cfg *Config, events []string) *Proxy {
 		p.events = convertToMap(events)
 	}
 
-	for _, route := range cfg.EndpointRoutes {
+	p.listenEndpoints()
+	return p
+}
+
+func (p *Proxy) listenEndpoints() {
+	for _, route := range p.cfg.EndpointRoutes {
 		// append to endpointClients
 		p.endpointClients = append(p.endpointClients, NewEndpointClient(
 			route.URL,
@@ -384,7 +391,7 @@ func New(cfg *Config, events []string) *Proxy {
 					},
 					Timeout: defaultTimeout,
 					Transport: &http.Transport{
-						TLSClientConfig: &tls.Config{InsecureSkipVerify: cfg.SkipVerify},
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: p.cfg.SkipVerify},
 					},
 				},
 				Log:             p.cfg.Log,
@@ -392,8 +399,6 @@ func New(cfg *Config, events []string) *Proxy {
 			},
 		))
 	}
-
-	return p
 }
 
 //
