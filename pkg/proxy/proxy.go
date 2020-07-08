@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -107,66 +108,89 @@ type EventSource interface {
 	Run(context.Context, sessionRefresher) (chan websocket.IncomingMessage, error)
 }
 
-type wsClient struct {
-	client *websocket.Client
-	cfg    *Config
+func readWSConnectErrorMessage(resp *http.Response) string {
+	if resp == nil {
+		return ""
+	}
+	if resp.Body == nil {
+		return ""
+	}
+
+	se := struct {
+		InnerError struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}{}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		return ""
+	}
+
+	err = json.Unmarshal(body, &se)
+	if err != nil {
+		return ""
+	}
+
+	return se.InnerError.Message
 }
 
-func (c wsClient) Run(ctx context.Context, refreshSession sessionRefresher) (chan websocket.IncomingMessage, error) {
-	session, err := refreshSession(ctx, nil)
+var unknownIDMessage string = "Unknown WebSocket ID."
+
+// ErrUnknownID can occur when the websocket session is expired or invalid
+var ErrUnknownID error = errors.New(unknownIDMessage)
+
+func isExpirationErr(err error, resp *http.Response) bool {
+	if err == nil || resp == nil {
+		return false
+	}
+	message := readWSConnectErrorMessage(resp)
+	return message == unknownIDMessage
+}
+
+func (p *Proxy) refreshSession(ctx context.Context, err error, resp *http.Response) (*stripeauth.StripeCLISession, error) {
+	if err != nil {
+		if !isExpirationErr(err, resp) {
+			return nil, nil
+		}
+	}
+	session, err := p.createSession(ctx)
 	if err != nil {
 		return nil, err
 	}
-	messages := make(chan websocket.IncomingMessage)
-	c.client = websocket.NewClient(
-		session.WebSocketURL,
-		session.WebSocketID,
-		session.WebSocketAuthorizedFeature,
-		&websocket.Config{
-			Log:               c.cfg.Log,
-			NoWSS:             c.cfg.NoWSS,
-			ReconnectInterval: time.Duration(session.ReconnectDelay) * time.Second,
-			EventHandler: websocket.EventHandlerFunc(func(m websocket.IncomingMessage) {
-				messages <- m
-			}),
-		},
-	)
 
-	go c.client.Run(ctx)
-	return messages, nil
-}
-
-func newWsClient(cfg *Config) EventSource {
-	return wsClient{cfg: cfg}
+	return session, nil
 }
 
 // Run sets the websocket connection and starts the Goroutines to forward
 // incoming events to the local endpoint.
 func (p *Proxy) Run(ctx context.Context) error {
-	isExpirationErr := func(err error) bool { return true }
-	refreshSession := func(ctx context.Context, err error) (*stripeauth.StripeCLISession, error) {
-		if err != nil {
-			if !isExpirationErr(err) {
-				return nil, err
+	client := websocket.NewClient(
+		&websocket.Config{
+			Log:   p.cfg.Log,
+			NoWSS: p.cfg.NoWSS,
+			GetReconnectInterval: func(session *stripeauth.StripeCLISession) time.Duration {
+				return time.Duration(session.ReconnectDelay) * time.Second
+			},
+		},
+	)
+	responses := p.listenEndpoints()
+	events := client.Run(ctx, p.refreshSession)
+	for {
+		select {
+		case event := <-events:
+			if event.Err != nil {
+				return event.Err
 			}
+			go p.processWebhookEvent(event.Msg)
+		case response, ok := <-responses:
+			if !ok {
+				return nil
+			}
+			go p.processEndpointResponse(response.eventContext, response.forwardURL, response.resp)
 		}
-		session, err := p.createSession(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		return session, nil
 	}
-
-	client := newWsClient(p.cfg)
-	events, err := client.Run(ctx, refreshSession)
-	if err != nil {
-		return err
-	}
-	for event := range events {
-		go p.processWebhookEvent(event)
-	}
-	return nil
 }
 
 // GetSessionSecret creates a session and returns the webhook signing secret.
@@ -372,11 +396,17 @@ func New(cfg *Config, events []string) *Proxy {
 		p.events = convertToMap(events)
 	}
 
-	p.listenEndpoints()
 	return p
 }
 
-func (p *Proxy) listenEndpoints() {
+type EndpointResponse = struct {
+	eventContext eventContext
+	forwardURL   string
+	resp         *http.Response
+}
+
+func (p *Proxy) listenEndpoints() chan EndpointResponse {
+	responses := make(chan EndpointResponse)
 	for _, route := range p.cfg.EndpointRoutes {
 		// append to endpointClients
 		p.endpointClients = append(p.endpointClients, NewEndpointClient(
@@ -394,11 +424,18 @@ func (p *Proxy) listenEndpoints() {
 						TLSClientConfig: &tls.Config{InsecureSkipVerify: p.cfg.SkipVerify},
 					},
 				},
-				Log:             p.cfg.Log,
-				ResponseHandler: EndpointResponseHandlerFunc(p.processEndpointResponse),
+				Log: p.cfg.Log,
+				ResponseHandler: EndpointResponseHandlerFunc(func(eventContext eventContext, forwardURL string, resp *http.Response) {
+					responses <- EndpointResponse{
+						eventContext: eventContext,
+						forwardURL:   forwardURL,
+						resp:         resp,
+					}
+				}),
 			},
 		))
 	}
+	return responses
 }
 
 //
