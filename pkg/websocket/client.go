@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	ws "github.com/gorilla/websocket"
@@ -77,7 +76,6 @@ type Client struct {
 	notifyClose   chan error
 	send          chan *OutgoingMessage
 	stopWritePump chan struct{}
-	wg            *sync.WaitGroup
 }
 
 type sessionRefresher = func(context.Context, error, *http.Response) (*stripeauth.StripeCLISession, error)
@@ -175,8 +173,6 @@ func (c *Client) Run(ctx context.Context, refreshSession sessionRefresher) chan 
 				if c.conn != nil {
 					c.conn.Close() // #nosec G104
 				}
-
-				c.wg.Wait()
 			}
 		}
 	}()
@@ -310,7 +306,6 @@ func (c *Client) writePump() {
 
 	defer func() {
 		ticker.Stop()
-		c.wg.Done()
 	}()
 
 	for {
